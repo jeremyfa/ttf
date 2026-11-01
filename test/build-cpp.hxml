@@ -1,0 +1,9 @@
+# C++ (hxcpp) build of the test runner. Use run-cpp.sh, which sets up a
+# local haxelib repository pointing to hxcpp.
+-cp src
+-cp ../src
+-cp ../../plutovg/src
+-main Main
+-dce full
+-D analyzer-optimize
+-cpp bin/cpp

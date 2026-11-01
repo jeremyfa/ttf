@@ -1,0 +1,14 @@
+{
+    "name": "ttf",
+    "url": "https://github.com/ceramic-engine/ttf",
+    "license": "MIT",
+    "tags": ["cross", "font", "truetype", "opentype", "text", "shaping"],
+    "description": "Pure Haxe TrueType / OpenType font support: parsing (glyf, CFF, CFF2, collections), metrics, glyph rasterization with plutovg, simple shaping (GSUB, GPOS, kern) with font fallback, and a glyph atlas.",
+    "version": "0.1.0",
+    "classPath": "src",
+    "releasenote": "Initial version.",
+    "contributors": [],
+    "dependencies": {
+        "plutovg": ""
+    }
+}

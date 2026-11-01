@@ -1,0 +1,8 @@
+# JS build of the test runner (run with node from the test/ directory).
+-cp src
+-cp ../src
+-cp ../../plutovg/src
+-main Main
+-dce full
+-D analyzer-optimize
+-js bin/test.js
