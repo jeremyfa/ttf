@@ -41,6 +41,42 @@ class Fs {
         #end
     }
 
+    public static function exists(path:String):Bool {
+        #if js
+        var fs:Dynamic = js.Lib.require('fs');
+        return fs.existsSync(path);
+        #else
+        return sys.FileSystem.exists(path);
+        #end
+    }
+
+    public static function fileSize(path:String):Int {
+        #if js
+        var fs:Dynamic = js.Lib.require('fs');
+        return fs.statSync(path).size;
+        #else
+        return sys.FileSystem.stat(path).size;
+        #end
+    }
+
+    /** Reads `length` bytes at `offset` of a file (for `ttf.FontSource`) */
+    public static function readRange(path:String, offset:Int, length:Int):Bytes {
+        #if js
+        var fs:Dynamic = js.Lib.require('fs');
+        var fd:Dynamic = fs.openSync(path, 'r');
+        var buf:Dynamic = js.Syntax.code('Buffer.alloc({0})', length);
+        var n:Int = fs.readSync(fd, buf, 0, length, offset);
+        fs.closeSync(fd);
+        return Bytes.ofData(js.Syntax.code('{0}.buffer.slice({0}.byteOffset, {0}.byteOffset + {1})', buf, n));
+        #else
+        var input = sys.io.File.read(path, true);
+        input.seek(offset, SeekBegin);
+        var bytes = input.read(length);
+        input.close();
+        return bytes;
+        #end
+    }
+
     public static function stamp():Float {
         #if js
         return js.Syntax.code('Number(process.hrtime.bigint()) / 1e9');

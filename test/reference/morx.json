@@ -1,0 +1,280 @@
+{
+ "tool": "hb-shape (HarfBuzz) 14.1.0",
+ "font": "/System/Library/Fonts/Apple Color Emoji.ttc",
+ "cases": [
+  {
+   "text": "😀",
+   "glyphs": [
+    2096
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "👨‍👩‍👧",
+   "glyphs": [
+    1544
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "👨‍👩‍👧‍👦",
+   "glyphs": [
+    3237
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "👍🏽",
+   "glyphs": [
+    1139
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "👩🏽‍💻",
+   "glyphs": [
+    1441
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "🇫🇷",
+   "glyphs": [
+    452
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "🇯🇵🇺🇸",
+   "glyphs": [
+    491,
+    608
+   ],
+   "clusters": [
+    0,
+    8
+   ]
+  },
+  {
+   "text": "🇫",
+   "glyphs": [
+    21
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "1️⃣",
+   "glyphs": [
+    139,
+    3
+   ],
+   "clusters": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "#️⃣",
+   "glyphs": [
+    136,
+    3
+   ],
+   "clusters": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "❤️",
+   "glyphs": [
+    338,
+    3
+   ],
+   "clusters": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "❤️‍🔥",
+   "glyphs": [
+    339,
+    3
+   ],
+   "clusters": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "🏳️‍🌈",
+   "glyphs": [
+    992,
+    3
+   ],
+   "clusters": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+   "glyphs": [
+    996
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "🏃‍➡️",
+   "glyphs": [
+    839,
+    3
+   ],
+   "clusters": [
+    0,
+    0
+   ]
+  },
+  {
+   "text": "🧑🏻‍🤝‍🧑🏿",
+   "glyphs": [
+    3155
+   ],
+   "clusters": [
+    0
+   ]
+  },
+  {
+   "text": "😀👍🏽🇫🇷👨‍👩‍👧",
+   "glyphs": [
+    2096,
+    1139,
+    452,
+    1544
+   ],
+   "clusters": [
+    0,
+    4,
+    12,
+    20
+   ]
+  },
+  {
+   "text": "👁️‍🗨️",
+   "glyphs": [
+    1079,
+    3,
+    3
+   ],
+   "clusters": [
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "clusterFont": "Inter-Regular.ttf",
+ "clusterCases": [
+  {
+   "text": "a🇫🇷🇯🇵b",
+   "glyphs": [
+    507,
+    0,
+    0,
+    0,
+    0,
+    578
+   ],
+   "clusters": [
+    0,
+    1,
+    1,
+    9,
+    9,
+    17
+   ]
+  },
+  {
+   "text": "👨‍👩‍👧x",
+   "glyphs": [
+    0,
+    1777,
+    0,
+    1777,
+    0,
+    993
+   ],
+   "clusters": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    18
+   ]
+  },
+  {
+   "text": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+   "glyphs": [
+    0,
+    1777,
+    1777,
+    1777,
+    1777,
+    1777,
+    1777
+   ],
+   "clusters": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "text": "x‍y",
+   "glyphs": [
+    993,
+    1777,
+    998
+   ],
+   "clusters": [
+    0,
+    0,
+    4
+   ]
+  },
+  {
+   "text": "👍🏽!",
+   "glyphs": [
+    0,
+    0,
+    1427
+   ],
+   "clusters": [
+    0,
+    0,
+    8
+   ]
+  }
+ ]
+}

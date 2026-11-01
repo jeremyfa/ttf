@@ -1,2 +1,3 @@
 test/bin/
 test/.haxelib/
+test/reference-gen/swash-color/target/

@@ -67,6 +67,12 @@ class Font {
 
     public var kern(default, null):KernTable = null;
 
+    /**
+     * Apple's `morx` table when the font has one and no `GSUB` (HarfBuzz
+     * shapes such fonts with `morx`), else null.
+     */
+    public var morx(default, null):ttf.layout.Morx = null;
+
     var directory:Int;
 
     var tableTags:Array<Int> = [];
@@ -90,6 +96,23 @@ class Font {
 
     var boxesReady:Bytes = null;
 
+    /** Source of the tables left out of `data` (see `fromSource()`), or null. */
+    var source:Null<FontSource> = null;
+
+    var externalTags:Array<Int> = [];
+
+    var externalOffsets:Array<Int> = [];
+
+    var externalLengths:Array<Int> = [];
+
+    var colorGlyphs:Null<ttf.color.ColorGlyphs> = null;
+
+    /**
+     * Tables that `fromSource()` leaves in the source by default: color and
+     * monochrome bitmap data, read glyph by glyph.
+     */
+    public static final LARGE_TABLES:Array<String> = ['sbix', 'CBDT', 'EBDT', 'SVG ', 'bdat'];
+
     /**
      * Number of faces in the given font data: the number of fonts for a
      * collection, 1 for a single font, 0 if the data is not a font.
@@ -111,6 +134,127 @@ class Font {
      */
     public static function fromBytes(data:Bytes, faceIndex:Int = 0):Font {
         return new Font(data, faceIndex);
+    }
+
+    /**
+     * Loads the face at `faceIndex` from a `FontSource`, reading only the
+     * table directory and the tables of that face, except the large tables
+     * (`LARGE_TABLES` by default), which stay in the source and are read
+     * piece by piece when glyphs are rendered (`readTable()`). `data` then
+     * holds a single font made of the loaded tables, not the file.
+     *
+     * Throws if the data is not a supported font.
+     */
+    public static function fromSource(source:FontSource, faceIndex:Int = 0, ?largeTables:Array<String>):Font {
+        if (largeTables == null)
+            largeTables = LARGE_TABLES;
+        var header = source.read(0, 12);
+        var count = header != null ? faceCount(header) : 0;
+        if (count == 0)
+            throw 'Font: unsupported font data';
+        if (faceIndex < 0 || faceIndex >= count)
+            throw 'Font: invalid face index $faceIndex (the font has $count faces)';
+        var directory = 0;
+        if (u32(header, 0) == 0x74746366) {
+            var entry = source.read(12 + faceIndex * 4, 4);
+            if (entry == null || entry.length < 4)
+                throw 'Font: truncated collection header';
+            directory = u32(entry, 0);
+        }
+        var dirHeader = source.read(directory, 12);
+        if (dirHeader == null || dirHeader.length < 12)
+            throw 'Font: truncated table directory';
+        var numTables = u16(dirHeader, 4);
+        var records = source.read(directory + 12, numTables * 16);
+        if (records == null || records.length < numTables * 16)
+            throw 'Font: truncated table directory';
+
+        var largeTags = [for (tag in largeTables) Bin.tagToInt(tag)];
+        var tags:Array<Int> = [];
+        var offsets:Array<Int> = [];
+        var lengths:Array<Int> = [];
+        var extTags:Array<Int> = [];
+        var extOffsets:Array<Int> = [];
+        var extLengths:Array<Int> = [];
+        for (i in 0...numTables) {
+            var tag = u32(records, i * 16);
+            var offset = u32(records, i * 16 + 8);
+            var length = u32(records, i * 16 + 12);
+            if (offset < 0 || length < 0 || offset + length > source.length)
+                continue;
+            if (largeTags.indexOf(tag) != -1) {
+                extTags.push(tag);
+                extOffsets.push(offset);
+                extLengths.push(length);
+            }
+            else {
+                tags.push(tag);
+                offsets.push(offset);
+                lengths.push(length);
+            }
+        }
+
+        // A single font made of the loaded tables, each one 4-byte aligned
+        var n = tags.length;
+        var size = 12 + n * 16;
+        var newOffsets:Array<Int> = [];
+        for (i in 0...n) {
+            newOffsets.push(size);
+            size += (lengths[i] + 3) & ~3;
+        }
+        var data = Bytes.alloc(size);
+        data.fill(0, size, 0);
+        inline function w16(o:Int, v:Int) {
+            data.set(o, (v >> 8) & 0xFF);
+            data.set(o + 1, v & 0xFF);
+        }
+        inline function w32(o:Int, v:Int) {
+            w16(o, (v >> 16) & 0xFFFF);
+            w16(o + 2, v & 0xFFFF);
+        }
+        w32(0, u32(dirHeader, 0));
+        w16(4, n);
+        for (i in 0...n) {
+            var rec = 12 + i * 16;
+            w32(rec, tags[i]);
+            w32(rec + 8, newOffsets[i]);
+            w32(rec + 12, lengths[i]);
+        }
+
+        // Read the tables, merging the ones that are close in the file
+        var order = [for (i in 0...n) i];
+        order.sort((a, b) -> offsets[a] - offsets[b]);
+        var k = 0;
+        while (k < n) {
+            var start = offsets[order[k]];
+            var end = start + lengths[order[k]];
+            var last = k;
+            while (last + 1 < n) {
+                var next = order[last + 1];
+                if (offsets[next] > end + 65536)
+                    break;
+                var nextEnd = offsets[next] + lengths[next];
+                if (nextEnd > end)
+                    end = nextEnd;
+                last++;
+            }
+            var chunk = source.read(start, end - start);
+            if (chunk == null || chunk.length < end - start)
+                throw 'Font: cannot read the tables';
+            for (j in k...last + 1) {
+                var t = order[j];
+                data.blit(newOffsets[t], chunk, offsets[t] - start, lengths[t]);
+            }
+            k = last + 1;
+        }
+
+        var font = new Font(data, 0);
+        font.source = source;
+        font.externalTags = extTags;
+        font.externalOffsets = extOffsets;
+        font.externalLengths = extLengths;
+        font.faceIndex = faceIndex;
+        return font;
     }
 
     public function new(data:Bytes, faceIndex:Int = 0) {
@@ -181,6 +325,11 @@ class Font {
         var gposOffset = table('GPOS');
         if (gposOffset >= 0)
             gpos = new Gpos(data, gposOffset, gdef, numGlyphs);
+        var morxOffset = table('morx');
+        if (morxOffset >= 0 && gsub == null) {
+            morx = new ttf.layout.Morx(data, morxOffset, tableLength('morx'));
+            if (morx.isEmpty) morx = null;
+        }
         var kernOffset = table('kern');
         if (kernOffset >= 0) {
             kern = new KernTable(data, kernOffset, tableLength('kern'));
@@ -210,7 +359,84 @@ class Font {
             if (tableTags[i] == t)
                 return tableLengths[i];
         }
+        for (i in 0...externalTags.length) {
+            if (externalTags[i] == t)
+                return externalLengths[i];
+        }
         return 0;
+    }
+
+    /**
+     * True if the font has the table, loaded in `data` or left in its
+     * source (see `fromSource()`).
+     */
+    public function hasTable(tag:String):Bool {
+        if (table(tag) >= 0)
+            return true;
+        var t = Bin.tagToInt(tag);
+        return externalTags.indexOf(t) != -1;
+    }
+
+    /**
+     * Gives access to `length` bytes at `offset` in a table, whether it is
+     * in `data` or left in the source: `out.bytes` holds them from
+     * `out.pos`. Returns false if the range is outside the table.
+     */
+    public function readTable(tag:String, offset:Int, length:Int, out:TableRange):Bool {
+        if (offset < 0 || length < 0)
+            return false;
+        var t = Bin.tagToInt(tag);
+        for (i in 0...tableTags.length) {
+            if (tableTags[i] == t) {
+                if (offset + length > tableLengths[i])
+                    return false;
+                out.bytes = data;
+                out.pos = tableOffsets[i] + offset;
+                return true;
+            }
+        }
+        if (source != null) {
+            for (i in 0...externalTags.length) {
+                if (externalTags[i] == t) {
+                    if (offset + length > externalLengths[i])
+                        return false;
+                    var bytes = source.read(externalOffsets[i] + offset, length);
+                    if (bytes == null || bytes.length < length)
+                        return false;
+                    out.bytes = bytes;
+                    out.pos = 0;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True if the font has color glyph tables (`COLR` / `CPAL`, `sbix`,
+     * `CBDT` / `CBLC`).
+     */
+    public var hasColorGlyphs(get, never):Bool;
+
+    var colorState:Int = 0;
+
+    function get_hasColorGlyphs():Bool {
+        if (colorState == 0)
+            colorState = ttf.color.ColorGlyphs.hasColorTables(this) ? 1 : 2;
+        return colorState == 1;
+    }
+
+    /**
+     * Color glyph data of the font (`COLR` / `CPAL`, `sbix`, `CBDT` /
+     * `CBLC`), or null if it has none.
+     */
+    public function color():Null<ttf.color.ColorGlyphs> {
+        if (colorGlyphs == null) {
+            if (!hasColorGlyphs)
+                return null;
+            colorGlyphs = new ttf.color.ColorGlyphs(this);
+        }
+        return colorGlyphs;
     }
 
     function readMetrics(head:Int, hhea:Int):Void {

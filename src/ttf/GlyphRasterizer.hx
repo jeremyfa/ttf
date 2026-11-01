@@ -87,6 +87,19 @@ class GlyphRasterizer {
     }
 
     /**
+     * Control box of the outline of a glyph scaled to `fontSize` pixels per
+     * em (pixels, y up), as scaled for rendering. Returns false if the glyph
+     * has no outline.
+     */
+    public function scaledBounds(font:Font, gid:Int, fontSize:Float, out:GlyphBox):Bool {
+        bounds.reset();
+        if (!scaledOutline(font, gid, fontSize, bounds) || bounds.empty)
+            return false;
+        out.set(bounds.xMin, bounds.yMin, bounds.xMax, bounds.yMax);
+        return true;
+    }
+
+    /**
      * Computes the pixel bounds of a glyph rendered at `fontSize` pixels
      * per em with the given subpixel offset (in pixels, x to the right and
      * y up). The result has no `data`.

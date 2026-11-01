@@ -66,8 +66,13 @@ class Main {
         testCollection();
 
         println('');
+        println('== Color glyphs');
+        ColorTests.run();
+
+        println('');
         println('== Benchmarks');
         benchmark();
+        ColorTests.benchmark();
 
         println('');
         println('$checks checks, $failures failures');

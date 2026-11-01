@@ -1,0 +1,13 @@
+[package]
+name = "swash-color-reference"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Renders the color glyphs of the ttf test fonts with swash (the rasterizer of GPUI's font file based text system), as reference data for the ttf library."
+license = "MIT"
+
+[workspace]
+
+[dependencies]
+# The swash version of gpui-pre-wgpu 0.3.10
+swash = "=0.2.10"

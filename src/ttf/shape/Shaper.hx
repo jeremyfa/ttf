@@ -54,6 +54,17 @@ class Shaper {
      */
     public var singlePrecision:Bool = false;
 
+    /**
+     * Characters displayed as emoji by default (Unicode's
+     * `Emoji_Presentation`), or null. Emoji prefer the fonts with color
+     * glyphs among the primary font and the fallbacks (see `pickFont()`):
+     * characters followed by variation selector 16 (U+FE0F) or by a skin
+     * tone modifier, and regional indicators, always do; the characters
+     * this function accepts do too unless followed by variation selector 15
+     * (U+FE0E, text presentation).
+     */
+    public var isEmojiPresentation:Null<Int->Bool> = null;
+
     var codePoints:Array<Int> = [];
 
     var byteOffsets:Array<Int> = [];
@@ -145,7 +156,8 @@ class Shaper {
             for (k in first...cpIndex) {
                 var c = cps[k];
                 var continuation = k > first && Utf8.isContinuation(c);
-                var font = continuation ? spanFont : pickFont(c, run, spanFont);
+                var font = continuation ? spanFont
+                    : pickFont(c, run, spanFont, (c > 0x7F || (k + 1 < cpIndex && cps[k + 1] == 0xFE0F)) && wantsColor(k, cpIndex));
                 var script = continuation ? Script.COMMON : Script.of(c);
                 if (k == first) {
                     spanFont = font;
@@ -174,22 +186,71 @@ class Shaper {
      * Font used for a character: ASCII and characters mapped by the primary
      * font use it, then the current fallback if it maps the character, then
      * the first fallback that does (like GPUI's `pick_covering_slot`).
+     * Emoji (`color`) look for a font with color glyphs first; other
+     * characters for a font without color glyphs first.
      */
-    function pickFont(c:Int, run:FontRun, current:Font):Font {
+    function pickFont(c:Int, run:FontRun, current:Font, color:Bool):Font {
         var primary = run.font;
         var fallbacks = run.fallbacks;
+        if (color) {
+            // Emoji: the first color font that maps the character, in the same order
+            if (primary.hasColorGlyphs && primary.hasChar(c))
+                return primary;
+            if (current != null && current != primary && current.hasColorGlyphs && current.hasChar(c))
+                return current;
+            if (fallbacks != null) {
+                for (i in 0...fallbacks.length) {
+                    var fb = fallbacks[i];
+                    if (fb.hasColorGlyphs && fb.hasChar(c))
+                        return fb;
+                }
+            }
+        }
         if (c <= 0x7F || fallbacks == null || fallbacks.length == 0)
             return primary;
         if (covers(primary, c))
             return primary;
-        if (current != null && current != primary && covers(current, c))
-            return current;
+        // Text presentation: fonts without color glyphs first, then the color
+        // fonts in the same order (only fonts with color glyphs change the
+        // GPUI rules)
+        var colorFallback:Font = null;
+        if (current != null && current != primary && covers(current, c)) {
+            if (!current.hasColorGlyphs)
+                return current;
+            colorFallback = current;
+        }
         for (i in 0...fallbacks.length) {
             var fb = fallbacks[i];
-            if (covers(fb, c))
-                return fb;
+            if (covers(fb, c)) {
+                if (!fb.hasColorGlyphs)
+                    return fb;
+                if (colorFallback == null)
+                    colorFallback = fb;
+            }
         }
-        return primary;
+        return colorFallback != null ? colorFallback : primary;
+    }
+
+    /** Approximation of Unicode's `Extended_Pictographic` (used after a ZWJ only) */
+    static inline function isPictographic(c:Int):Bool {
+        return c >= 0x1F000 || (c >= 0x2100 && c <= 0x2BFF) || c == 0xA9 || c == 0xAE || c == 0x203C
+            || c == 0x2049 || c == 0x3030 || c == 0x303D || c == 0x3297 || c == 0x3299;
+    }
+
+    /**
+     * True if the character at `k` (of the code points before `end`) asks
+     * for an emoji (color) glyph, see `isEmojiPresentation`.
+     */
+    function wantsColor(k:Int, end:Int):Bool {
+        var c = codePoints[k];
+        var next = k + 1 < end ? codePoints[k + 1] : -1;
+        if (next == 0xFE0F || (next >= 0x1F3FB && next <= 0x1F3FF))
+            return true;
+        if (next == 0xFE0E)
+            return false;
+        if (c >= 0x1F1E6 && c <= 0x1F1FF)
+            return true;
+        return c > 0x7F && isEmojiPresentation != null && isEmojiPresentation(c);
     }
 
     /**
@@ -286,19 +347,37 @@ class Shaper {
         var hasClasses = gdef != null && gdef.hasGlyphClasses;
         var lastCp = -1;
         var lastCluster = offsets[start];
+        var morx = font.morx;
 
+        var previous = -1;
+        var regionalIndicators = 0;
         for (k in start...end) {
             var c = cps[k];
-            // Characters that continue a cluster (marks, joiners...) share its index
-            var cluster = (k > start && Utf8.isContinuation(c)) ? lastCluster : offsets[k];
+            // Characters that continue a cluster (marks, joiners...) share its
+            // index, and like HarfBuzz's `hb_set_unicode_props`, so do the
+            // pictograph after a ZWJ, the second regional indicator of a pair
+            // and tag characters (emoji sequences are one cluster)
+            var isRegional = c >= 0x1F1E6 && c <= 0x1F1FF;
+            var continuation = k > start && (Utf8.isContinuation(c)
+                || (previous == 0x200D && isPictographic(c))
+                || (isRegional && (regionalIndicators & 1) == 1)
+                || (c >= 0xE0020 && c <= 0xE007F));
+            regionalIndicators = isRegional ? regionalIndicators + 1 : 0;
+            previous = c;
+            var cluster = continuation ? lastCluster : offsets[k];
             lastCluster = cluster;
             if (Utf8.isVariationSelector(c)) {
                 if (buf.length > 0 && lastCp >= 0) {
                     var g = font.glyphForCharVariant(lastCp, c);
-                    if (g != 0) {
+                    if (g != 0 && g != buf.glyphs[buf.length - 1]) {
                         buf.glyphs[buf.length - 1] = g;
                         if (hasClasses)
                             buf.classes[buf.length - 1] = gdef.glyphClass(g);
+                    }
+                    else if (morx != null && font.hasChar(c)) {
+                        // AAT fonts match variation selectors in their
+                        // sequences (like HarfBuzz without a cmap 14 mapping)
+                        buf.push(font.glyphForChar(c), cluster, Gdef.HIDDEN);
                     }
                 }
                 continue;
@@ -324,6 +403,10 @@ class Shaper {
                 continue;
             }
             var glyphClass = hasClasses ? gdef.glyphClass(gid) : (Utf8.isMark(c) ? Gdef.MARK : Gdef.BASE);
+            // AAT fonts map default ignorables (ZWJ...) to glyphs their
+            // `morx` sequences match; they stay hidden unless substituted
+            if (morx != null && Utf8.isDefaultIgnorable(c))
+                glyphClass = Gdef.HIDDEN;
             buf.push(gid, cluster, glyphClass);
             lastCp = c;
         }
@@ -337,6 +420,15 @@ class Shaper {
         var gsub = font.gsub;
         if (gsub != null)
             gsub.apply(buf, gsub.lookupsForKey(key, scriptTag, features.gsub));
+        else if (morx != null) {
+            morx.apply(buf, font.numGlyphs);
+            if (hasClasses) {
+                for (i in 0...buf.length) {
+                    if (buf.classes[i] != Gdef.HIDDEN)
+                        buf.classes[i] = gdef.glyphClass(buf.glyphs[i]);
+                }
+            }
+        }
 
         for (i in 0...buf.length)
             buf.xAdvance[i] = font.advance(buf.glyphs[i]);
