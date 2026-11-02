@@ -46,6 +46,7 @@ class ColorTests {
         testAstralCmap();
         testFromSource();
         testColorFallback();
+        testPrimaryKeepsCoveredEmoji();
         testMorx();
     }
 
@@ -91,6 +92,27 @@ class ColorTests {
             }
         }
         Main.report('morx (Apple Color Emoji, ${reference.tool})', cases.length, bad);
+    }
+
+    /** `primaryKeepsCoveredEmoji`: cosmic-text's rule, a cluster the primary font maps stays on it */
+    static function testPrimaryKeepsCoveredEmoji():Void {
+        var inter = Font.fromBytes(Main.fontBytes('Inter-Regular.ttf'));
+        var colr = Font.fromBytes(Main.fontBytes('ColrTest.ttf'));
+        var shaper = new ttf.shape.Shaper();
+        function fonts(text:String):String {
+            var line = shaper.layoutLine(text, 16, [new ttf.shape.FontRun(ttf.Utf8.byteLength(text), inter, [colr])]);
+            return [for (run in line.runs) run.font == inter ? 'I' : 'C'].join('');
+        }
+        var ok = Main.check(fonts('A\u{FE0F}') == 'C', 'default, A + VS16: ' + fonts('A\u{FE0F}'));
+        shaper.primaryKeepsCoveredEmoji = true;
+        // Variation selectors and joiners are ignorable: the primary keeps the cluster
+        ok = Main.check(fonts('A\u{FE0F}') == 'I', 'A + VS16: ' + fonts('A\u{FE0F}')) && ok;
+        ok = Main.check(fonts('x\u{E9}\u{FE0F}') == 'I', 'e acute + VS16: ' + fonts('x\u{E9}\u{FE0F}')) && ok;
+        // A continuation the primary lacks (a skin tone): the color font
+        ok = Main.check(fonts('x\u{E9}\u{1F3FB}') == 'IC', 'e acute + skin tone: ' + fonts('x\u{E9}\u{1F3FB}')) && ok;
+        // Characters the primary lacks still prefer the color font
+        ok = Main.check(fonts('x\u{1F600}') == 'IC', 'emoji: ' + fonts('x\u{1F600}')) && ok;
+        Main.report('primaryKeepsCoveredEmoji', 1, ok ? 0 : 1);
     }
 
     /** Emoji sequences prefer the fallbacks with color glyphs */

@@ -65,6 +65,18 @@ class Shaper {
      */
     public var isEmojiPresentation:Null<Int->Bool> = null;
 
+    /**
+     * When true, a character that asks for an emoji glyph stays on the
+     * primary font when that font maps it and the rest of its cluster
+     * (variation selectors, joiners and tag characters excepted, the
+     * default ignorable characters HarfBuzz hides): cosmic-text's rule,
+     * which keeps a cluster on the first font that shapes it without a
+     * notdef glyph, so `❤️` stays on a text font that maps `❤`. False (the
+     * default): emoji prefer the fonts with color glyphs, the primary font
+     * included only if it has color glyphs.
+     */
+    public var primaryKeepsCoveredEmoji:Bool = false;
+
     var codePoints:Array<Int> = [];
 
     var byteOffsets:Array<Int> = [];
@@ -157,7 +169,8 @@ class Shaper {
                 var c = cps[k];
                 var continuation = k > first && Utf8.isContinuation(c);
                 var font = continuation ? spanFont
-                    : pickFont(c, run, spanFont, (c > 0x7F || (k + 1 < cpIndex && cps[k + 1] == 0xFE0F)) && wantsColor(k, cpIndex));
+                    : pickFont(c, run, spanFont, (c > 0x7F || (k + 1 < cpIndex && cps[k + 1] == 0xFE0F)) && wantsColor(k, cpIndex)
+                        && !(primaryKeepsCoveredEmoji && primaryCoversCluster(run.font, k, cpIndex)));
                 var script = continuation ? Script.COMMON : Script.of(c);
                 if (k == first) {
                     spanFont = font;
@@ -229,6 +242,37 @@ class Shaper {
             }
         }
         return colorFallback != null ? colorFallback : primary;
+    }
+
+    /**
+     * True if `font` maps the character at `k` and every character of its
+     * cluster (as grouped by `shapeSpan()`), except the default ignorable
+     * ones (variation selectors, ZWJ, tag characters), see
+     * `primaryKeepsCoveredEmoji`.
+     */
+    function primaryCoversCluster(font:Font, k:Int, end:Int):Bool {
+        var cps = codePoints;
+        if (!covers(font, cps[k]))
+            return false;
+        var previous = cps[k];
+        var regionalIndicators = previous >= 0x1F1E6 && previous <= 0x1F1FF ? 1 : 0;
+        var i = k + 1;
+        while (i < end) {
+            var c = cps[i];
+            var isRegional = c >= 0x1F1E6 && c <= 0x1F1FF;
+            var isTag = c >= 0xE0020 && c <= 0xE007F;
+            var continuation = Utf8.isContinuation(c) || (previous == 0x200D && isPictographic(c))
+                || (isRegional && (regionalIndicators & 1) == 1) || isTag;
+            if (!continuation)
+                break;
+            var ignorable = Utf8.isVariationSelector(c) || c == 0x200D || isTag;
+            if (!ignorable && !covers(font, c))
+                return false;
+            regionalIndicators = isRegional ? regionalIndicators + 1 : 0;
+            previous = c;
+            i++;
+        }
+        return true;
     }
 
     /** Approximation of Unicode's `Extended_Pictographic` (used after a ZWJ only) */
