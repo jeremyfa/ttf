@@ -222,7 +222,7 @@ class CffOutline {
         return count < 1240 ? 107 : (count < 33900 ? 1131 : 32768);
     }
 
-    function parsePrivate(start:Int, size:Int, onVsIndex:Int->Void):CffIndex {
+    function parsePrivate(start:Int, size:Int, onVsIndex:(Int) -> Void):CffIndex {
         var subrsOffset = -1;
         parseDict(start, start + size, function(op, ops, n) {
             if (op == 19 && n > 0)

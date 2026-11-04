@@ -63,7 +63,7 @@ class Shaper {
      * this function accepts do too unless followed by variation selector 15
      * (U+FE0E, text presentation).
      */
-    public var isEmojiPresentation:Null<Int->Bool> = null;
+    public var isEmojiPresentation:Null<(Int) -> Bool> = null;
 
     /**
      * When true, a character that asks for an emoji glyph stays on the

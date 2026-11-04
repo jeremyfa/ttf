@@ -38,10 +38,10 @@ class GlyphAtlas {
     public var frame:Int = 0;
 
     /** Called after a page has been cleared to make room. */
-    public var onPageEvicted:AtlasPage->Void = null;
+    public var onPageEvicted:(AtlasPage) -> Void = null;
 
     /** Called when a page is created. */
-    public var onPageCreated:AtlasPage->Void = null;
+    public var onPageCreated:(AtlasPage) -> Void = null;
 
     public function new(pageWidth:Int = 1024, pageHeight:Int = 1024, maxPages:Int = 0, padding:Int = 1) {
         this.pageWidth = pageWidth;
