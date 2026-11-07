@@ -2,7 +2,7 @@
 
 Runtime TrueType / OpenType font support in pure Haxe: font parsing, metrics, glyph outlines, rasterization, a simple shaper with font fallback, and a glyph atlas.
 
-It is original code written for [Ceramic](https://ceramic-engine.com) (the `ttf` plugin uses it to display `.ttf` / `.otf` fonts without precomputed bitmap fonts) and for the GPUI port of Ceramic (text shaping, line layout, glyph atlas). It does not depend on Ceramic and runs on every Haxe target. Its only dependency is [plutovg](../plutovg) (the pure Haxe port of plutovg), for `PathOutlineSink`. Glyphs are rasterized by `GrayRaster`, a port of the scan converter of [zeno](https://github.com/dfrg/zeno) (the rasterizer of swash, MIT / Apache-2.0, see the header of `GrayRaster.hx`). Color glyphs follow swash too (`ttf.color`, MIT / Apache-2.0), and `morx` follows HarfBuzz (`ttf.layout.Morx`, Old MIT), see the headers of those files.
+It is original code written for [Ceramic](https://ceramic-engine.com) (the `ttf` plugin uses it to display `.ttf` / `.otf` fonts without precomputed bitmap fonts) and for Glaze, the GPUI port of Ceramic (text shaping, line layout, glyph atlas). It does not depend on Ceramic and runs on every Haxe target. Its only dependency is [plutovg](../plutovg) (the pure Haxe port of plutovg), for `PathOutlineSink`. Glyphs are rasterized by `GrayRaster`, a port of the scan converter of [zeno](https://github.com/dfrg/zeno) (the rasterizer of swash, MIT / Apache-2.0, see the header of `GrayRaster.hx`). Color glyphs follow swash too (`ttf.color`, MIT / Apache-2.0), and `morx` follows HarfBuzz (`ttf.layout.Morx`, Old MIT), see the headers of those files.
 
 ## Features
 
